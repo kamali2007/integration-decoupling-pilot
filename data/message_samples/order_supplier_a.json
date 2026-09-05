@@ -1,0 +1,13 @@
+{
+  "orderNumber": "ORD-1001",
+  "itemCode": "PROD-101",
+  "qty": 150,
+  "dispatchPriority": "EXPEDITED",
+  "targetDelivery": "2026-09-25",
+  "receivedTimestamp": "2026-09-05T08:00:00Z",
+  "metadata": {
+    "sourceAdapter": "Alpha-REST-v1",
+    "canonicalEventId": "EVT-ORD-A10101",
+    "correlationId": "CORR-ORD-001"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "ORDER_NO": "ORD-1001",
+  "SKU": "PROD-102",
+  "QTY": 32,
+  "EXPEDITE_FLAG": false,
+  "SCHEDULE_DATE": "2026-09-25",
+  "SYSTEM_ORIGIN": "CANONICAL_GATEWAY"
+}

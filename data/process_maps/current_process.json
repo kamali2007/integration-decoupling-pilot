@@ -1,0 +1,58 @@
+{
+  "project_title": "Integration Decoupling Pilot: Process Maps",
+  "baseline_point_to_point": {
+    "description": "Fragile point-to-point connections directly coupling source systems to individual supplier schemas.",
+    "source_systems": [
+      {"id": "SRC-ERP", "name": "SAP S/4HANA ERP"},
+      {"id": "SRC-FCST", "name": "Forecast Planning System"}
+    ],
+    "supplier_systems": [
+      {"id": "SUP-A", "name": "Alpha Components Ltd."},
+      {"id": "SUP-B", "name": "Beta Manufacturing Corp"},
+      {"id": "SUP-C", "name": "Gamma Parts GmbH"}
+    ],
+    "connections": [
+      {"source": "SRC-ERP", "target": "SUP-A", "protocol": "REST/JSON (Custom Alpha Schema)"},
+      {"source": "SRC-ERP", "target": "SUP-B", "protocol": "SOAP/XML (Custom Beta Schema)"},
+      {"source": "SRC-ERP", "target": "SUP-C", "protocol": "SAP RFC (Custom Gamma Schema)"},
+      {"source": "SRC-FCST", "target": "SUP-A", "protocol": "Batch SFTP (Alpha Format)"},
+      {"source": "SRC-FCST", "target": "SUP-B", "protocol": "AS2 EDI 830 (Beta Format)"},
+      {"source": "SRC-FCST", "target": "SUP-C", "protocol": "IDoc PROACT (Gamma Format)"}
+    ],
+    "blast_radius_systems_changed": 6,
+    "vulnerabilities": [
+      "Tight coupling across 6 independent codebases",
+      "Duplicated business logic and priority rules in 6 places",
+      "High regression testing overhead (18 tests per rule change)",
+      "Uncoordinated production deployment desynchronization",
+      "Lack of centralized auditability and idempotency guarantees"
+    ]
+  },
+  "target_decoupled_architecture": {
+    "description": "Canonical Event-Driven Decoupled Architecture with single source of truth for business rules and isolated supplier adapters.",
+    "canonical_layer": {
+      "name": "FastAPI Canonical Event Gateway",
+      "responsibilities": [
+        "Pydantic schema validation for Orders and Forecasts",
+        "Centralized business rule evaluation (CR-001 Priority Threshold Engine)",
+        "Idempotency and deduplication locking via UUID/correlation keys",
+        "Append-only audit trail logging for all event lifecycle transitions",
+        "Asynchronous decoupling: resilient to source system delays"
+      ]
+    },
+    "adapters": [
+      {"id": "ADAPT-A", "name": "Supplier A Adapter (Alpha)", "target_format": "Alpha REST JSON (qty, itemCode)"},
+      {"id": "ADAPT-B", "name": "Supplier B Adapter (Beta)", "target_format": "Beta EDI JSON (orderedQuantity, partNumber)"},
+      {"id": "ADAPT-C", "name": "Supplier C Adapter (Gamma)", "target_format": "Gamma RFC JSON (QTY, SKU, EXPEDITE_FLAG)"}
+    ],
+    "blast_radius_systems_changed": 1,
+    "improvement_percentage": 83.3,
+    "benefits": [
+      "Single business rule component modification for threshold changes",
+      "Zero modifications to supplier adapters when internal business logic changes",
+      "Automated idempotency eliminates duplicate transmission risks",
+      "Immediate rollback capability without supplier code re-deployments",
+      "Full audit observability across end-to-end event lifecycle"
+    ]
+  }
+}

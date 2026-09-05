@@ -1,0 +1,39 @@
+{
+  "change_id": "CR-001",
+  "title": "Urgent Order Volume Threshold Realignment",
+  "requested_by": "Supply Chain Operations Board",
+  "impact_level": "HIGH",
+  "rule_key": "URGENT_ORDER_THRESHOLD",
+  "current_state": {
+    "version": "BR-1.0",
+    "rule_expression": "if order.is_urgent and order.quantity >= 100 then PRIORITY_HIGH else NORMAL",
+    "threshold": 100
+  },
+  "proposed_state": {
+    "version": "BR-2.0",
+    "rule_expression": "if order.is_urgent and order.quantity >= 200 then PRIORITY_HIGH else NORMAL",
+    "threshold": 200
+  },
+  "justification": "Supplier production floor constraints require reserving expedited handling capacity strictly for major purchase volumes (>= 200 units) to reduce carrier surcharges.",
+  "blast_radius_comparison": {
+    "baseline_systems_changed": 6,
+    "decoupled_systems_changed": 1,
+    "systems_saved": 5,
+    "reduction_percentage": 83.3,
+    "affected_baseline_integrations": [
+      "ERP -> Supplier A Connector",
+      "ERP -> Supplier B Connector",
+      "ERP -> Supplier C Connector",
+      "Forecast -> Supplier A Connector",
+      "Forecast -> Supplier B Connector",
+      "Forecast -> Supplier C Connector"
+    ],
+    "affected_decoupled_components": [
+      "Canonical Business Rule Engine (canonical_event_service.py)"
+    ]
+  },
+  "governance_workflow": {
+    "required_approvals": ["Lead Enterprise Architect", "VP of Supply Chain"],
+    "rollback_plan": "Restore BR-1.0 threshold (100) via automated API rollback endpoint without downtime."
+  }
+}

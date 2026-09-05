@@ -1,0 +1,8 @@
+{
+  "poRef": "ORD-1001",
+  "partNumber": "PROD-102",
+  "orderedQuantity": 32,
+  "urgencyLevel": "ROUTINE",
+  "requestedDate": "2026-09-25",
+  "partnerCode": "MFG-APEX"
+}

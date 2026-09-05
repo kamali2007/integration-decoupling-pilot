@@ -1,0 +1,9 @@
+{
+  "alphaForecastId": "AF-FCST-2001",
+  "componentSku": "PROD-101",
+  "projectedVolume": 1200,
+  "planningHorizon": "2026-Q3",
+  "confidenceScore": 0.93,
+  "originatingSystem": "CANONICAL-PLANNING-LAYER",
+  "publishedUtc": "2026-09-05T08:00:00Z"
+}

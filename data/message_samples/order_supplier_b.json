@@ -1,0 +1,13 @@
+{
+  "poRef": "ORD-1002",
+  "partNumber": "PROD-102",
+  "orderedQuantity": 180,
+  "urgencyLevel": "CRITICAL",
+  "requestedDate": "2026-09-28",
+  "partnerCode": "MFG-APEX",
+  "auditMeta": {
+    "adapter": "Beta-SOAP/JSON-v2",
+    "canonicalRef": "EVT-ORD-B20202",
+    "correlationId": "CORR-ORD-002"
+  }
+}
