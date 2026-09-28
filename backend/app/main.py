@@ -17,7 +17,8 @@ from app.api import (
     audit,
     rollback,
     systems,
-    validation
+    validation,
+    queue
 )
 
 
@@ -63,6 +64,7 @@ app.include_router(audit.router, prefix="/api")
 app.include_router(rollback.router, prefix="/api")
 app.include_router(systems.router, prefix="/api")
 app.include_router(validation.router, prefix="/api")
+app.include_router(queue.router, prefix="/api")
 
 
 @app.get("/")

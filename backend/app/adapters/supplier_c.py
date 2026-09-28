@@ -1,5 +1,7 @@
 import datetime
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional, List
+from pydantic import ValidationError
+from app.schemas import SupplierCInboundOrder, SupplierPayloadC
 
 
 class SupplierCAdapter:
@@ -12,10 +14,13 @@ class SupplierCAdapter:
     - priority (PRIORITY_HIGH -> True, NORMAL -> False) -> EXPEDITE_FLAG
     - delivery_date -> SCHEDULE_DATE
     - SYSTEM_ORIGIN -> CANONICAL_GATEWAY
+
+    Also provides explicit schema contract validation for Supplier C messages.
     """
 
     SUPPLIER_CODE = "SUP-C"
     SUPPLIER_NAME = "Gamma Parts"
+    FORMAT_SPEC = "Gamma SAP/RFC Gateway JSON"
 
     def validate(self, canonical_payload: Dict[str, Any]) -> Tuple[bool, str]:
         """Validates canonical event against Gamma Parts strict validation."""
@@ -26,6 +31,35 @@ class SupplierCAdapter:
         if int(canonical_payload.get("quantity", 0)) <= 0:
             return False, "QTY must be greater than zero"
         return True, "Valid"
+
+    def validate_inbound_message(self, message: Dict[str, Any]) -> Tuple[bool, str, Optional[SupplierCInboundOrder], List[str]]:
+        """
+        Validates raw supplier input message against explicit Supplier C schema contract.
+        Returns (is_valid, summary_message, parsed_model, list_of_error_strings).
+        """
+        try:
+            parsed = SupplierCInboundOrder(**message)
+            return True, "Message conforms to Supplier C (Gamma) schema contract", parsed, []
+        except ValidationError as err:
+            errors = [f"{e['loc'][0]}: {e['msg']}" for e in err.errors()]
+            return False, f"Supplier C contract validation failed: {len(errors)} error(s)", None, errors
+
+    def transform_to_canonical(self, inbound: SupplierCInboundOrder) -> Dict[str, Any]:
+        """
+        Supplier-specific transformation: translates Supplier C payload into canonical representation.
+        Supplier-specific logic remains encapsulated within the adapter.
+        """
+        return {
+            "order_id": inbound.ORDER_NO,
+            "product_id": inbound.SKU,
+            "quantity": inbound.QTY,
+            "supplier_id": self.SUPPLIER_CODE,
+            "unit": "EA",
+            "priority": "PRIORITY_HIGH" if inbound.EXPEDITE_FLAG else "NORMAL",
+            "delivery_date": inbound.SCHEDULE_DATE,
+            "source_system": "SUPPLIER_C",
+            "is_urgent": inbound.EXPEDITE_FLAG
+        }
 
     def transform(self, canonical_payload: Dict[str, Any]) -> Dict[str, Any]:
         """Transforms canonical event into Supplier C payload."""
@@ -57,3 +91,22 @@ class SupplierCAdapter:
             "LATENCY_MS": latency,
             "TIMESTAMP": datetime.datetime.utcnow().isoformat() + "Z"
         }
+
+    def get_contract_spec(self) -> Dict[str, Any]:
+        """Returns the explicit contract specification for API documentation."""
+        return {
+            "supplier_code": self.SUPPLIER_CODE,
+            "supplier_name": self.SUPPLIER_NAME,
+            "format_spec": self.FORMAT_SPEC,
+            "schema_model": "SupplierCInboundOrder",
+            "required_fields": ["ORDER_NO", "SKU", "QTY", "SCHEDULE_DATE"],
+            "optional_fields": ["EXPEDITE_FLAG", "SYSTEM_ORIGIN"],
+            "field_mapping": {
+                "ORDER_NO": "order_id",
+                "SKU": "product_id",
+                "QTY": "quantity",
+                "EXPEDITE_FLAG": "priority (True -> PRIORITY_HIGH)",
+                "SCHEDULE_DATE": "delivery_date"
+            }
+        }
+

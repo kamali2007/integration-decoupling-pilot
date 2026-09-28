@@ -1,5 +1,7 @@
 import datetime
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional, List
+from pydantic import ValidationError
+from app.schemas import SupplierBInboundOrder, SupplierPayloadB
 
 
 class SupplierBAdapter:
@@ -12,10 +14,13 @@ class SupplierBAdapter:
     - priority (PRIORITY_HIGH -> CRITICAL, NORMAL -> ROUTINE)
     - delivery_date -> requestedDate
     - partnerCode -> MFG-APEX
+
+    Also provides explicit schema contract validation for Supplier B messages.
     """
 
     SUPPLIER_CODE = "SUP-B"
     SUPPLIER_NAME = "Beta Manufacturing"
+    FORMAT_SPEC = "Beta SOAP/JSON EDI v2"
 
     def validate(self, canonical_payload: Dict[str, Any]) -> Tuple[bool, str]:
         """Validates canonical event against Beta Manufacturing requirements."""
@@ -26,6 +31,36 @@ class SupplierBAdapter:
         if int(canonical_payload.get("quantity", 0)) <= 0:
             return False, "orderedQuantity must be greater than zero"
         return True, "Valid"
+
+    def validate_inbound_message(self, message: Dict[str, Any]) -> Tuple[bool, str, Optional[SupplierBInboundOrder], List[str]]:
+        """
+        Validates raw supplier input message against explicit Supplier B schema contract.
+        Returns (is_valid, summary_message, parsed_model, list_of_error_strings).
+        """
+        try:
+            parsed = SupplierBInboundOrder(**message)
+            return True, "Message conforms to Supplier B (Beta) schema contract", parsed, []
+        except ValidationError as err:
+            errors = [f"{e['loc'][0]}: {e['msg']}" for e in err.errors()]
+            return False, f"Supplier B contract validation failed: {len(errors)} error(s)", None, errors
+
+    def transform_to_canonical(self, inbound: SupplierBInboundOrder) -> Dict[str, Any]:
+        """
+        Supplier-specific transformation: translates Supplier B payload into canonical representation.
+        Supplier-specific logic remains encapsulated within the adapter.
+        """
+        is_critical = inbound.urgencyLevel.upper() == "CRITICAL"
+        return {
+            "order_id": inbound.poRef,
+            "product_id": inbound.partNumber,
+            "quantity": inbound.orderedQuantity,
+            "supplier_id": self.SUPPLIER_CODE,
+            "unit": "EA",
+            "priority": "PRIORITY_HIGH" if is_critical else "NORMAL",
+            "delivery_date": inbound.requestedDate,
+            "source_system": "SUPPLIER_B",
+            "is_urgent": is_critical
+        }
 
     def transform(self, canonical_payload: Dict[str, Any]) -> Dict[str, Any]:
         """Transforms canonical event into Supplier B payload."""
@@ -57,3 +92,22 @@ class SupplierBAdapter:
             "latencyMs": latency,
             "processedAt": datetime.datetime.utcnow().isoformat() + "Z"
         }
+
+    def get_contract_spec(self) -> Dict[str, Any]:
+        """Returns the explicit contract specification for API documentation."""
+        return {
+            "supplier_code": self.SUPPLIER_CODE,
+            "supplier_name": self.SUPPLIER_NAME,
+            "format_spec": self.FORMAT_SPEC,
+            "schema_model": "SupplierBInboundOrder",
+            "required_fields": ["poRef", "partNumber", "orderedQuantity", "requestedDate"],
+            "optional_fields": ["urgencyLevel", "partnerCode"],
+            "field_mapping": {
+                "poRef": "order_id",
+                "partNumber": "product_id",
+                "orderedQuantity": "quantity",
+                "urgencyLevel": "priority (CRITICAL -> PRIORITY_HIGH)",
+                "requestedDate": "delivery_date"
+            }
+        }
+

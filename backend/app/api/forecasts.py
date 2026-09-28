@@ -75,5 +75,23 @@ def create_forecast(
 
     if not is_delayed:
         create_forecast_canonical_event(db, forecast)
+    else:
+        # Asynchronously buffer delayed forecast into message queue for resilience
+        from app.services.queue_service import enqueue_message
+        enqueue_message(
+            db=db,
+            topic="forecasts.buffered",
+            payload={
+                "forecast_id": forecast.forecast_id,
+                "supplier_id": forecast.supplier_id,
+                "product_id": forecast.product_id,
+                "forecast_quantity": forecast.forecast_quantity,
+                "forecast_period": forecast.forecast_period,
+                "confidence_level": forecast.confidence_level
+            },
+            idempotency_key=f"BUFFER-FCST-{forecast.forecast_id}",
+            source_system=forecast.source_system or "FORECAST_SYSTEM",
+            correlation_id=correlation_id
+        )
 
     return forecast

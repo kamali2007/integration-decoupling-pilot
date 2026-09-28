@@ -86,5 +86,24 @@ def create_order(
         order.status = "PROCESSED"
         db.commit()
         db.refresh(order)
+    elif is_delayed:
+        # Asynchronously buffer delayed order into message queue for resilience
+        from app.services.queue_service import enqueue_message
+        enqueue_message(
+            db=db,
+            topic="orders.buffered",
+            payload={
+                "order_id": order.order_id,
+                "supplier_id": order.supplier_id,
+                "product_id": order.product_id,
+                "quantity": order.quantity,
+                "unit": order.unit,
+                "is_urgent": order.is_urgent,
+                "delivery_date": order.delivery_date
+            },
+            idempotency_key=f"BUFFER-ORD-{order.order_id}",
+            source_system=order.source_system or "ERP",
+            correlation_id=correlation_id
+        )
 
     return order

@@ -95,5 +95,23 @@ class SupplierAdapterInterface:
 
 ---
 
-## 6. Stability Guarantee
+## 6. Explicit Schema Contracts & Inbound Validation (Qbee Review 1)
+
+Each supplier adapter provides strict, explicit Pydantic schema contracts (`SupplierAInboundOrder`, `SupplierBInboundOrder`, `SupplierCInboundOrder`):
+
+- **Validation Interface**: `validate_inbound_message(message: Dict[str, Any]) -> Tuple[bool, str, Optional[Model], List[str]]`
+  - Validates inbound messages against strict field types, positive numeric quantities, and non-empty strings.
+  - Returns explicit, understandable validation error lists when contracts are violated.
+- **Transformation to Canonical**: `transform_to_canonical(inbound_model) -> Dict[str, Any]`
+  - Encapsulates supplier-specific transformation logic inside the adapter.
+  - Emits standard canonical order representation for ingestion into the Canonical Event Layer.
+- **Contract Metadata Exposure**:
+  - `GET /api/adapters/contracts` publishes live contract specifications, required/optional fields, and field mappings.
+  - `POST /api/adapters/validate` performs pre-flight contract validation without side effects.
+  - `POST /api/adapters/{supplier_code}/ingest` accepts valid messages, rejects invalid messages with HTTP 422, and dispatches through the Canonical Event Layer.
+
+---
+
+## 7. Stability Guarantee
 When internal business policies change (e.g. CR-001 raising urgent order threshold to 200), **all 3 adapters remain completely untouched**. The canonical priority is resolved upstream in the Canonical Event Layer, and adapters merely format the resulting boolean/enum representation.
+

@@ -250,3 +250,22 @@ class StakeholderValidation(Base):
     comments = Column(Text, default="Exemplary reduction in integration blast radius.")
     is_simulated = Column(Boolean, default=True)     # "Prototype Validation – Sample/Simulated"
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class MessageQueueItem(Base):
+    __tablename__ = "message_queue"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    queue_id = Column(String, unique=True, nullable=False)  # MSG-10001
+    topic = Column(String, nullable=False)  # orders.incoming, forecasts.incoming, events.dispatch
+    payload = Column(JSON, nullable=False)
+    idempotency_key = Column(String, nullable=True, index=True)
+    status = Column(String, default="QUEUED")  # QUEUED, PROCESSING, PROCESSED, RETRYING, FAILED, DEAD_LETTER
+    retry_count = Column(Integer, default=0)
+    max_retries = Column(Integer, default=3)
+    error_message = Column(Text, nullable=True)
+    source_system = Column(String, default="ERP")
+    correlation_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    processed_at = Column(DateTime, nullable=True)
+

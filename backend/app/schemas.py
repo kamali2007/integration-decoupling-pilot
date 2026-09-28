@@ -344,3 +344,110 @@ class StakeholderValidationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# =========================================================
+# Asynchronous Message Queue / Buffer Schemas
+# =========================================================
+class QueuedMessageCreate(BaseModel):
+    topic: str = Field(..., description="Message topic e.g. orders.incoming, forecasts.incoming, events.dispatch")
+    payload: Dict[str, Any] = Field(..., description="Raw message payload dictionary")
+    idempotency_key: Optional[str] = Field(None, description="Optional unique key to prevent duplicate processing")
+    source_system: str = Field(default="ERP", description="Originating source system")
+    correlation_id: Optional[str] = Field(None, description="End-to-end tracing correlation identifier")
+
+
+class QueuedMessageResponse(BaseModel):
+    id: str
+    queue_id: str
+    topic: str
+    payload: Dict[str, Any]
+    idempotency_key: Optional[str] = None
+    status: str
+    retry_count: int
+    max_retries: int
+    error_message: Optional[str] = None
+    source_system: str
+    correlation_id: Optional[str] = None
+    created_at: datetime.datetime
+    processed_at: Optional[datetime.datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class QueueProcessResponse(BaseModel):
+    success: bool
+    queue_id: str
+    status: str
+    detail: str
+    attempt_count: int
+    canonical_event_id: Optional[str] = None
+
+
+class QueueStatsResponse(BaseModel):
+    total: int
+    queued: int
+    processing: int
+    processed: int
+    retrying: int
+    failed: int
+    dead_letter: int
+
+
+# =========================================================
+# Supplier Adapter Explicit Schema Contracts
+# =========================================================
+class SupplierAInboundOrder(BaseModel):
+    """Explicit Schema Contract for Supplier A (Alpha Components)."""
+    orderNumber: str = Field(..., min_length=1, description="Supplier PO reference (e.g. ORD-1001)")
+    itemCode: str = Field(..., min_length=1, description="Alpha part code (e.g. PROD-101)")
+    qty: int = Field(..., gt=0, description="Order quantity, must be strictly positive")
+    dispatchPriority: str = Field(default="STANDARD", description="EXPEDITED or STANDARD")
+    targetDelivery: str = Field(..., description="Target delivery date in ISO format YYYY-MM-DD")
+    receivedTimestamp: Optional[str] = Field(None, description="Transmission timestamp ISO string")
+
+
+class SupplierBInboundOrder(BaseModel):
+    """Explicit Schema Contract for Supplier B (Beta Manufacturing)."""
+    poRef: str = Field(..., min_length=1, description="Beta PO reference (e.g. ORD-1002)")
+    partNumber: str = Field(..., min_length=1, description="Beta component part number (e.g. PROD-102)")
+    orderedQuantity: int = Field(..., gt=0, description="Order quantity, must be strictly positive")
+    urgencyLevel: str = Field(default="ROUTINE", description="CRITICAL or ROUTINE")
+    requestedDate: str = Field(..., description="Requested delivery date in ISO format YYYY-MM-DD")
+    partnerCode: str = Field(default="MFG-APEX", description="Partner identification code")
+
+
+class SupplierCInboundOrder(BaseModel):
+    """Explicit Schema Contract for Supplier C (Gamma Parts)."""
+    ORDER_NO: str = Field(..., min_length=1, description="Gamma order reference (e.g. ORD-1003)")
+    SKU: str = Field(..., min_length=1, description="Gamma SKU code (e.g. PROD-103)")
+    QTY: int = Field(..., gt=0, description="Order quantity, must be strictly positive")
+    EXPEDITE_FLAG: bool = Field(default=False, description="True for expedited dispatch")
+    SCHEDULE_DATE: str = Field(..., description="Scheduled date in ISO format YYYY-MM-DD")
+    SYSTEM_ORIGIN: str = Field(default="CANONICAL_GATEWAY", description="Origin system code")
+
+
+class SupplierValidationRequest(BaseModel):
+    supplier_code: str = Field(..., description="SUP-A, SUP-B, or SUP-C")
+    payload: Dict[str, Any] = Field(..., description="Supplier message payload to validate against contract")
+
+
+class SupplierValidationResponse(BaseModel):
+    valid: bool
+    supplier_code: str
+    adapter_name: str
+    message: str
+    errors: Optional[List[str]] = None
+    canonical_preview: Optional[Dict[str, Any]] = None
+
+
+class SupplierIngestResponse(BaseModel):
+    status: str
+    supplier_code: str
+    canonical_event_id: str
+    order_id: str
+    business_rule_version: str
+    priority: str
+    detail: str
+

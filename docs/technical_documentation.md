@@ -37,10 +37,12 @@ integration-decoupling-pilot/
 │   │   │   ├── audit.py                # GET /api/audit
 │   │   │   ├── rollback.py             # GET, POST /api/rollback
 │   │   │   ├── systems.py              # GET, POST /api/systems/simulate
-│   │   │   └── validation.py           # GET, POST /api/validation
+│   │   │   ├── validation.py           # GET, POST /api/validation
+│   │   │   └── queue.py                # GET, POST /api/queue (enqueue, process, retry, stats)
 │   │   │
 │   │   ├── services/                   # Business logic layer
 │   │   │   ├── canonical_event_service.py # Canonical event creation & idempotency
+│   │   │   ├── queue_service.py        # Asynchronous queue, buffering & retries
 │   │   │   ├── adapter_service.py      # Multi-supplier routing & retries
 │   │   │   ├── baseline_service.py     # 6-connector point-to-point simulator
 │   │   │   ├── experiment_service.py   # Blast-radius calculation (83.3%)
@@ -50,14 +52,14 @@ integration-decoupling-pilot/
 │   │   │   └── rollback_service.py     # Audited rule version restoration
 │   │   │
 │   │   ├── adapters/                   # Supplier-specific adapters
-│   │   │   ├── supplier_a.py           # Alpha Components (qty, itemCode)
-│   │   │   ├── supplier_b.py           # Beta Manufacturing (orderedQuantity)
-│   │   │   └── supplier_c.py           # Gamma Parts (QTY, EXPEDITE_FLAG)
+│   │   │   ├── supplier_a.py           # Alpha Components (contract, qty, itemCode)
+│   │   │   ├── supplier_b.py           # Beta Manufacturing (contract, orderedQuantity)
+│   │   │   └── supplier_c.py           # Gamma Parts (contract, QTY, EXPEDITE_FLAG)
 │   │   │
 │   │   └── seed/
 │   │       └── seed_data.py            # Automated rich enterprise seeder
 │   │
-│   ├── tests/                          # Automated pytest suite (16 tests)
+│   ├── tests/                          # Automated pytest suite (26 tests)
 │   │   ├── conftest.py                 # StaticPool SQLite test fixture
 │   │   ├── test_health.py
 │   │   ├── test_orders.py
@@ -66,7 +68,9 @@ integration-decoupling-pilot/
 │   │   ├── test_adapters.py
 │   │   ├── test_failures.py
 │   │   ├── test_experiments.py
-│   │   └── test_rollback.py
+│   │   ├── test_rollback.py
+│   │   ├── test_queue.py               # Asynchronous queue & resilience tests
+│   │   └── test_supplier_contracts.py  # Explicit supplier schema contracts tests
 │   │
 │   ├── requirements.txt
 │   ├── pytest.ini
