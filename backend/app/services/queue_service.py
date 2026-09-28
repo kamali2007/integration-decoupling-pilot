@@ -36,7 +36,12 @@ def enqueue_message(
     """
     corr_id = correlation_id or f"CORR-Q-{uuid.uuid4().hex[:8].upper()}"
 
-    # Check idempotency
+    # -------------------------------------------------------------
+    # Error Boundary / Idempotency Check:
+    # Verifies whether a message with this idempotency key was previously
+    # accepted. If found, suppresses duplicate processing, preserves the
+    # existing queue item, and records a WARNING audit trail entry.
+    # -------------------------------------------------------------
     if idempotency_key:
         existing = db.query(MessageQueueItem).filter(
             MessageQueueItem.idempotency_key == idempotency_key
@@ -54,6 +59,7 @@ def enqueue_message(
             )
             return existing, False
 
+    # Allocate new unique queue message identifier
     queue_id = f"MSG-{uuid.uuid4().hex[:8].upper()}"
     item = MessageQueueItem(
         queue_id=queue_id,
@@ -212,6 +218,13 @@ def process_message(
         return True, "Message processed successfully", item, canonical_event_id
 
     except Exception as exc:
+        # -------------------------------------------------------------
+        # Error Boundary / Fault Interception:
+        # Traps transient communication, downstream offline, or validation faults.
+        # Implements a bounded state machine:
+        # - When attempts < max_retries: transitions to RETRYING with audit warning.
+        # - When attempts >= max_retries: transitions to FAILED (dead-letter).
+        # -------------------------------------------------------------
         item.retry_count += 1
         item.error_message = str(exc)
 
@@ -238,7 +251,11 @@ def process_message(
                 correlation_id=item.correlation_id
             )
 
-        # Create or link failure in Failure Center for visibility
+        # -------------------------------------------------------------
+        # Failure Center Integration:
+        # Escalates unhandled or retrying queue exceptions into the centralized
+        # FailureCase repository so dashboard operators have immediate visibility.
+        # -------------------------------------------------------------
         target_sys = item.payload.get("supplier_id") or item.source_system
         fail_case = FailureCase(
             failure_id=f"FAIL-Q-{uuid.uuid4().hex[:6].upper()}",
@@ -283,7 +300,12 @@ def retry_message(db: Session, queue_id: str) -> Tuple[bool, str, MessageQueueIt
     success, detail, item, evt_id = process_message(db, queue_id, simulate_failure=False)
 
     if success:
-        # Resolve any associated open failure cases
+        # -------------------------------------------------------------
+        # Self-Healing Resolution Flow:
+        # Once retry execution succeeds, any corresponding FailureCase
+        # entries holding the failure condition are automatically transitioned
+        # to RESOLVED, clearing the operator alert in Failure Center.
+        # -------------------------------------------------------------
         open_failures = db.query(FailureCase).filter(
             FailureCase.audit_reference == queue_id,
             FailureCase.status == "OPEN"

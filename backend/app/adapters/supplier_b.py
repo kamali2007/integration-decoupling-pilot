@@ -36,6 +36,11 @@ class SupplierBAdapter:
         """
         Validates raw supplier input message against explicit Supplier B schema contract.
         Returns (is_valid, summary_message, parsed_model, list_of_error_strings).
+
+        Error Boundary Guarantee:
+        Catches Pydantic ValidationError and formats it into understandable, actionable
+        field-level messages so invalid external payloads are safely rejected before reaching
+        the canonical domain logic.
         """
         try:
             parsed = SupplierBInboundOrder(**message)
